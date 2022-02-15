@@ -84,7 +84,7 @@ echo "Running AlphaFold for $input_fasta."
 echo "Using databases preset '$db_preset', AlphaFold model preset '$model_preset'."
 echo "Output directory: $output_directory."
 echo "Using Miniconda from $conda_directory, AlphaFold from $alphafold_installation_directory, and databases from $databases_directory."
-if [ $dry_run ]; then
+if $dry_run; then
     exit 0
 fi
 
