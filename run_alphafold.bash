@@ -33,7 +33,7 @@ if [ $# -eq 0 ]; then
     echo "$usage"
     exit 0
 fi
-while getopts 'I:D:i:o:d:p:T:th' opt; do
+while getopts 'C:I:D:i:o:d:p:T:th' opt; do
     case $opt in
         C) conda_directory="$OPTARG";;
         I) alphafold_installation_directory="$OPTARG";;
