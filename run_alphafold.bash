@@ -69,10 +69,12 @@ if [ "$model_preset" == "monomer_ptm" ]; then
     uniprot_argument=""
     pdb_seqres_argument=""
     pdb70_argument="--pdb70_database_path=$databases_directory/pdb70/pdb70"
+    num_multimer_models_argument=""
 elif [ "$model_preset" == "multimer" ]; then
    uniprot_argument="--uniprot_database_path=$databases_directory/uniprot/uniprot.fasta"
    pdb_seqres_argument="--pdb_seqres_database_path=$databases_directory/pdb_seqres/pdb_seqres.txt"
    pdb70_argument=""
+   num_multimer_models_argument="--num_multimer_predictions_per_model 1"
 else
     echo "ERROR: unknown AlphaFold model preset!"
     echo
@@ -90,11 +92,13 @@ fi
 
 . $conda_directory/bin/activate alphafold2
 python $alphafold_installation_directory/run_alphafold.py \
+    --nouse_gpu_relax \
     --fasta_paths=$input_fasta \
     --output_dir=$output_directory \
     --data_dir=$databases_directory \
     --db_preset=$db_preset \
     --model_preset=$model_preset \
+    $num_multimer_models_argument \
     $bfd_argument \
     $small_bfd_argument \
     $uniprot_argument \
