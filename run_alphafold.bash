@@ -4,14 +4,16 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
-conda_directory="$HOME/miniconda3"
-alphafold_installation_directory="$HOME/software/alphafold"
-databases_directory="/tmp/alphafold"
+conda_directory="/data/miniconda3"
+alphafold_installation_directory="/data/alphafold"
+databases_directory="/data/alphafold_dbs"
 input_fasta=""
 output_directory=""
 db_preset=""
 model_preset=""
 max_template_date="2200-02-02"
+gpu_present=true
+precomputed_msas=false
 dry_run=false
 
 usage="A script to run AlphaFold2 from DeepMind.
@@ -25,15 +27,20 @@ Command line arguments:
 -d: AlphaFold databases preset (reduced_dbs or full_dbs);
 -p: AlphaFold model preset (monomer_ptm, multimer);
 -T: maximum template date (current: $max_template_date);
+-m: use precomputed MSAs;
+-G: indicate if GPU is not possible;
 -t: dry run: do not run AlphaFold, only test configuration;
 -h: show this message.
+
+To run using SLURM on GPU server, use this sbatch command:
+sbatch --ntasks=1 --gres=gpu:1 --cpus-per-task=24 ...
 "
 
 if [ $# -eq 0 ]; then
     echo "$usage"
     exit 0
 fi
-while getopts 'C:I:D:i:o:d:p:T:th' opt; do
+while getopts 'C:I:D:i:o:d:p:T:thGm' opt; do
     case $opt in
         C) conda_directory="$OPTARG";;
         I) alphafold_installation_directory="$OPTARG";;
@@ -43,6 +50,8 @@ while getopts 'C:I:D:i:o:d:p:T:th' opt; do
         d) db_preset="$OPTARG";;
         p) model_preset="$OPTARG";;
         T) max_template_date="$OPTARG";;
+        m) precomputed_msas=true;;
+        G) gpu_present=false;;
         t) dry_run=true;;
         h) echo "$usage"; exit 0;;
     esac
@@ -86,13 +95,30 @@ echo "Running AlphaFold for $input_fasta."
 echo "Using databases preset '$db_preset', AlphaFold model preset '$model_preset'."
 echo "Output directory: $output_directory."
 echo "Using Miniconda from $conda_directory, AlphaFold from $alphafold_installation_directory, and databases from $databases_directory."
+if $gpu_present; then
+    echo "Relaxing using GPU."
+    gpu_relax_argument="--use_gpu_relax"
+    export NVIDIA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES
+    export TF_FORCE_UNIFIED_MEMORY=1
+    export XLA_PYTHON_CLIENT_MEM_FRACTION=4.0
+else
+    echo "Relaxing using CPU."
+    gpu_relax_argument="--nouse_gpu_relax"
+fi
+if $precomputed_msas; then
+    echo "Using precomputed MSAs."
+    precomputed_msas_argument="--use_precomputed_msas"
+else
+    echo "Running sequence searches for MSAs."
+    precomputed_msas_argument=""
+fi
 if $dry_run; then
     exit 0
 fi
 
-. $conda_directory/bin/activate alphafold2
+. $conda_directory/bin/activate alphafold
 python $alphafold_installation_directory/run_alphafold.py \
-    --nouse_gpu_relax \
+    $gpu_relax_argument $precomputed_msas_argument \
     --fasta_paths=$input_fasta \
     --output_dir=$output_directory \
     --data_dir=$databases_directory \
