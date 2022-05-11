@@ -45,6 +45,7 @@ class ModelData:
 
     def plot_pLDDT(self, save_to_file=False):
         plt.title('Predicted LDDT')
+        plt.ylim(0, 100)
         plt.plot(self.plddt)
         if save_to_file:
             plt.savefig(self.file_name+'_pLDDT.png')
