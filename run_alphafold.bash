@@ -14,6 +14,8 @@ model_preset=""
 max_template_date="2200-02-02"
 gpu_present=true
 precomputed_msas=false
+analyze_results=false
+calculate_voromqa=false
 dry_run=false
 
 usage="A script to run AlphaFold2 from DeepMind.
@@ -22,6 +24,7 @@ Command line arguments:
 -C: Miniconda directory where AlphaFold2 is installed (current: $conda_directory);
 -I: AlphaFold installation directory (current: $alphafold_installation_directory);
 -D: directory path to AlphaFold databases (current: $databases_directory);
+-S: analyze AlphaFold prediction results using scripts from given scripts directory;
 -i: input Fasta file;
 -o: output directory (default: directory of input file);
 -d: AlphaFold databases preset (reduced_dbs or full_dbs);
@@ -29,6 +32,7 @@ Command line arguments:
 -T: maximum template date (current: $max_template_date);
 -m: use precomputed MSAs;
 -G: indicate if GPU is not possible;
+-V: calculate VoroMQA scores for relaxed models;
 -t: dry run: do not run AlphaFold, only test configuration;
 -h: show this message.
 
@@ -40,11 +44,12 @@ if [ $# -eq 0 ]; then
     echo "$usage"
     exit 0
 fi
-while getopts 'C:I:D:i:o:d:p:T:thGm' opt; do
+while getopts 'C:I:D:S:i:o:d:p:T:thGmV' opt; do
     case $opt in
         C) conda_directory="$OPTARG";;
         I) alphafold_installation_directory="$OPTARG";;
         D) databases_directory="$OPTARG";;
+        S) analyze_results=true; scripts_directory="$OPTARG";;
         i) input_fasta="$OPTARG";;
         o) output_directory="$OPTARG";;
         d) db_preset="$OPTARG";;
@@ -53,6 +58,7 @@ while getopts 'C:I:D:i:o:d:p:T:thGm' opt; do
         m) precomputed_msas=true;;
         G) gpu_present=false;;
         t) dry_run=true;;
+        V) calculate_voromqa=true;;
         h) echo "$usage"; exit 0;;
     esac
 done
@@ -79,11 +85,15 @@ if [ "$model_preset" == "monomer_ptm" ]; then
     pdb_seqres_argument=""
     pdb70_argument="--pdb70_database_path=$databases_directory/pdb70/pdb70"
     num_multimer_models_argument=""
+    pkl_analysis_multimer_setting=""
+    voromqa_inter_chain_argument=""
 elif [ "$model_preset" == "multimer" ]; then
-   uniprot_argument="--uniprot_database_path=$databases_directory/uniprot/uniprot.fasta"
-   pdb_seqres_argument="--pdb_seqres_database_path=$databases_directory/pdb_seqres/pdb_seqres.txt"
-   pdb70_argument=""
-   num_multimer_models_argument="--num_multimer_predictions_per_model 1"
+    uniprot_argument="--uniprot_database_path=$databases_directory/uniprot/uniprot.fasta"
+    pdb_seqres_argument="--pdb_seqres_database_path=$databases_directory/pdb_seqres/pdb_seqres.txt"
+    pdb70_argument=""
+    num_multimer_models_argument="--num_multimer_predictions_per_model 1"
+    pkl_analysis_multimer_setting="--multimer"
+    voromqa_inter_chain_argument="--score-inter-chain"
 else
     echo "ERROR: unknown AlphaFold model preset!"
     echo
@@ -93,12 +103,25 @@ fi
 
 echo "Running AlphaFold for $input_fasta."
 echo "Using databases preset '$db_preset', AlphaFold model preset '$model_preset'."
+if $analyze_results; then
+    echo "Running AlphaFold prediction analysis scripts from $scripts_directory."
+fi
+if $calculate_voromqa; then
+    if which voronota-voromqa > /dev/null; then
+        echo "Calculating VoroMQA for predictions."
+    else
+        echo "VoroMQA executable 'voronota-voromqa' not found in $PATH, skipping VoroMQA calculations."
+        calculate_voromqa=false
+    fi
+fi
 echo "Output directory: $output_directory."
 echo "Using Miniconda from $conda_directory, AlphaFold from $alphafold_installation_directory, and databases from $databases_directory."
 if $gpu_present; then
     echo "Relaxing using GPU."
     gpu_relax_argument="--use_gpu_relax"
-    export NVIDIA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES
+    if [ ! -z ${CUDA_VISIBLE_DEVICES:-} ]; then
+        export NVIDIA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES
+    fi
     export TF_FORCE_UNIFIED_MEMORY=1
     export XLA_PYTHON_CLIENT_MEM_FRACTION=4.0
 else
@@ -116,6 +139,7 @@ if $dry_run; then
     exit 0
 fi
 
+echo "Running AlphaFold predictions."
 . $conda_directory/bin/activate alphafold
 python $alphafold_installation_directory/run_alphafold.py \
     $gpu_relax_argument $precomputed_msas_argument \
@@ -136,4 +160,17 @@ python $alphafold_installation_directory/run_alphafold.py \
     --max_template_date=$max_template_date \
     --template_mmcif_dir=$databases_directory/pdb_mmcif/mmcif_files/ \
     --obsolete_pdbs_path=$databases_directory/pdb_mmcif/obsolete.dat
-
+if $analyze_results; then
+    echo "Analyzing prediction results."
+    find $output_directory -type f -name result*.pkl | while read f; do
+        out=${f/.pkl/.af_scores}
+        python $scripts_directory/analyze_alphafold_pickle.py $f --save-plots $pkl_analysis_multimer_setting | tee $out
+    done
+fi
+if $calculate_voromqa; then
+    echo "Calculating VoroMQA scores for relaxed models."
+    find $output_directory -type f -name relaxed*.pdb | while read f; do
+        out=${f/.pdb/.voromqa}
+        voronota-voromqa -i $f $voromqa_inter_chain_argument --print-header | tee $out
+    done
+fi
