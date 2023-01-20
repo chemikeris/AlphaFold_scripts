@@ -69,11 +69,11 @@ fi
 if [ "$db_preset" == "full_dbs" ]; then
     bfd_argument="--bfd_database_path=$databases_directory/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
     small_bfd_argument=""
-    uniclust30_argument="--uniclust30_database_path=$databases_directory/uniclust30/uniclust30_2018_08/uniclust30_2018_08"
+    uniref30_argument="--uniref30_database_path=$databases_directory/uniref30/UniRef30_2021_03"
 elif [ "$db_preset" == "reduced_dbs" ]; then
     small_bfd_argument="--small_bfd_database_path=$databases_directory/small_bfd/bfd-first_non_consensus_sequences.fasta"
     bfd_argument=""
-    uniclust30_argument=""
+    uniref30_argument=""
 else
     echo "ERROR: unknown AlphaFold databases preset setting!"
     echo
@@ -154,9 +154,9 @@ python $alphafold_installation_directory/run_alphafold.py \
     $uniprot_argument \
     $pdb_seqres_argument \
     $pdb70_argument \
-    $uniclust30_argument \
+    $uniref30_argument \
     --uniref90_database_path=$databases_directory/uniref90/uniref90.fasta \
-    --mgnify_database_path=$databases_directory/mgnify/mgy_clusters_2018_12.fa \
+    --mgnify_database_path=$databases_directory/mgnify/mgy_clusters_2022_05.fa \
     --max_template_date=$max_template_date \
     --template_mmcif_dir=$databases_directory/pdb_mmcif/mmcif_files/ \
     --obsolete_pdbs_path=$databases_directory/pdb_mmcif/obsolete.dat
