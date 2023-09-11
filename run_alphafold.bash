@@ -115,6 +115,9 @@ if $calculate_voromqa; then
     fi
 fi
 echo "Output directory: $output_directory."
+input_basename=`basename $input_fasta`
+output_subdirectory=$output_directory/${input_basename%.*}
+echo "Results directory: $output_subdirectory."
 echo "Using Miniconda from $conda_directory, AlphaFold from $alphafold_installation_directory, and databases from $databases_directory."
 if $gpu_present; then
     echo "Relaxing using GPU."
@@ -162,14 +165,14 @@ python $alphafold_installation_directory/run_alphafold.py \
     --obsolete_pdbs_path=$databases_directory/pdb_mmcif/obsolete.dat
 if $analyze_results; then
     echo "Analyzing prediction results."
-    find $output_directory -type f -name result*.pkl | while read f; do
+    find $output_subdirectory -type f -name result*.pkl | while read f; do
         out=${f/.pkl/.af_scores}
         python $scripts_directory/analyze_alphafold_pickle.py $f --save-plots $pkl_analysis_multimer_setting | tee $out
     done
 fi
 if $calculate_voromqa; then
     echo "Calculating VoroMQA scores for relaxed models."
-    find $output_directory -type f -name relaxed*.pdb | while read f; do
+    find $output_subdirectory -type f -name relaxed*.pdb | while read f; do
         out=${f/.pdb/.voromqa}
         voronota-voromqa -i $f $voromqa_inter_chain_argument --print-header | tee $out
     done
