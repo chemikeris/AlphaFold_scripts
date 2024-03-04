@@ -27,7 +27,7 @@ Command line arguments:
 -S: analyze AlphaFold prediction results using scripts from given scripts directory;
 -i: input Fasta file;
 -o: output directory (default: directory of input file);
--d: AlphaFold databases preset (reduced_dbs or full_dbs);
+-d: AlphaFold databases preset (reduced_dbs, full_dbs, full_dbs_newer_uniprot);
 -p: AlphaFold model preset (monomer_ptm, multimer);
 -T: maximum template date (current: $max_template_date);
 -m: use precomputed MSAs;
@@ -70,6 +70,11 @@ if [ "$db_preset" == "full_dbs" ]; then
     bfd_argument="--bfd_database_path=$databases_directory/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
     small_bfd_argument=""
     uniref30_argument="--uniref30_database_path=$databases_directory/uniref30/UniRef30_2021_03"
+elif [ "$db_preset" == "full_dbs_newer_uniprot" ]; then
+    bfd_argument="--bfd_database_path=$databases_directory/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
+    small_bfd_argument=""
+    uniref30_argument="--uniref30_database_path=$databases_directory/uniref30/UniRef30_2023_02"
+    db_preset='full_dbs'
 elif [ "$db_preset" == "reduced_dbs" ]; then
     small_bfd_argument="--small_bfd_database_path=$databases_directory/small_bfd/bfd-first_non_consensus_sequences.fasta"
     bfd_argument=""
