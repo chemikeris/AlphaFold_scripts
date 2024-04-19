@@ -6,6 +6,8 @@ import pickle
 import sys
 import os
 import argparse
+import json
+import numpy
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -15,13 +17,41 @@ class ModelData:
         "Parse necessary data from AlphaFold pickle file"
         self.file_name = os.path.splitext(pkl_file_name)[0]
         p = pickle.load(open(pkl_file_name, 'rb'))
-        self.ptm = float(p['ptm'])
-        if multimer:
-            self.iptm = float(p['iptm'])
-        self.plddt = p['plddt']
-        self.global_plddt = sum(p['plddt'])/len(p['plddt'])
-        self.predicted_aligned_error = p['predicted_aligned_error']
-        self.max_pae = p['max_predicted_aligned_error']
+        self.multimer = multimer
+        del p['distogram']
+        del p['experimentally_resolved']
+        del p['masked_msa']
+        del p['structure_module']
+        del p['aligned_confidence_probs']
+        self.data = p
+
+    @property
+    def ptm(self):
+        return float(self.data['ptm'])
+
+    @property
+    def iptm(self):
+        if self.multimer:
+            iptm = float(self.data['iptm'])
+        else:
+            iptm = None
+        return iptm
+
+    @property
+    def plddt(self):
+        return self.data['plddt']
+
+    @property
+    def global_plddt(self):
+        return sum(self.data['plddt'])/len(self.data['plddt'])
+
+    @property
+    def predicted_aligned_error(self):
+        return self.data['predicted_aligned_error']
+
+    @property
+    def max_pae(self):
+        return float(self.data['max_predicted_aligned_error'])
 
     def __str__(self):
         s = []
@@ -53,6 +83,21 @@ class ModelData:
             plt.show()
         plt.close()
 
+    def to_json(self):
+        "Convert AlphaFold pkl to json with necessary data only"
+        return json.dumps(self.data, cls=NumPyEncoder)
+
+
+class NumPyEncoder(json.JSONEncoder):
+    def default(self, o):
+        if type(o).__module__ == numpy.__name__:
+            if isinstance(o, numpy.ndarray):
+                return o.tolist()
+            else:
+                return o.item()
+        else:
+            return json.JSONEncoder.default(self, o)
+
 
 def main():
     arguments_parser = argparse.ArgumentParser(description=__doc__)
@@ -61,15 +106,27 @@ def main():
         '--multimer', action='store_true', help='parse multimer results'
         )
     arguments_parser.add_argument(
+        '--show-plots', action='store_true',
+        help='show pLDDT and PAE plots'
+        )
+    arguments_parser.add_argument(
         '--save-plots', action='store_true',
         help='save pLDDT and PAE plots to files'
+        )
+    arguments_parser.add_argument(
+        '--print-json', action='store_true',
+        help='print model data in JSON format'
         )
     args = arguments_parser.parse_args()
 
     model_data = ModelData(args.pkl_file, args.multimer)
-    model_data.plot_PAE(args.save_plots)
-    model_data.plot_pLDDT(args.save_plots)
-    print(model_data)
+    if args.show_plots or args.save_plots:
+        model_data.plot_PAE(args.save_plots)
+        model_data.plot_pLDDT(args.save_plots)
+    if args.print_json:
+        print(model_data.to_json())
+    else:
+        print(model_data)
 
 
 if __name__ == '__main__':
