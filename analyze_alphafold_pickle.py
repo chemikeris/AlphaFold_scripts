@@ -6,6 +6,7 @@ import pickle
 import sys
 import os
 import argparse
+import logging
 import json
 import numpy
 import matplotlib
@@ -13,17 +14,28 @@ import matplotlib.pyplot as plt
 
 
 class ModelData:
-    def __init__(self, pkl_file_name, multimer):
+    def __init__(self, pkl_file_name, multimer, from_json=False):
         "Parse necessary data from AlphaFold pickle file"
         self.file_name = os.path.splitext(pkl_file_name)[0]
-        p = pickle.load(open(pkl_file_name, 'rb'))
-        self.multimer = multimer
-        del p['distogram']
-        del p['experimentally_resolved']
-        del p['masked_msa']
-        del p['structure_module']
-        del p['aligned_confidence_probs']
-        self.data = p
+        if from_json:
+            with open(pkl_file_name) as f:
+                self.data = json.load(f)
+        else:
+            p = pickle.load(open(pkl_file_name, 'rb'))
+            self.multimer = multimer
+            try:
+                del p['distogram']
+                del p['experimentally_resolved']
+                del p['masked_msa']
+                del p['structure_module']
+                del p['aligned_confidence_probs']
+            except KeyError as err:
+                logging.warning(
+                    'Some keys (like %s) not found in pkl file %s, '\
+                        'probably it is a minified version.',
+                    err, pkl_file_name
+                    )
+            self.data = p
 
     @property
     def ptm(self):
@@ -100,8 +112,12 @@ class NumPyEncoder(json.JSONEncoder):
 
 
 def main():
+    logging.basicConfig(format='%(levelname)s: %(message)s')
     arguments_parser = argparse.ArgumentParser(description=__doc__)
     arguments_parser.add_argument('pkl_file')
+    arguments_parser.add_argument(
+        '--from-json', action='store_true', help='read pkl from json file'
+        )
     arguments_parser.add_argument(
         '--multimer', action='store_true', help='parse multimer results'
         )
@@ -119,7 +135,7 @@ def main():
         )
     args = arguments_parser.parse_args()
 
-    model_data = ModelData(args.pkl_file, args.multimer)
+    model_data = ModelData(args.pkl_file, args.multimer, args.from_json)
     if args.show_plots or args.save_plots:
         model_data.plot_PAE(args.save_plots)
         model_data.plot_pLDDT(args.save_plots)
