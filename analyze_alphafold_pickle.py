@@ -108,11 +108,18 @@ class NumPyEncoder(json.JSONEncoder):
             else:
                 return o.item()
         else:
-            return json.JSONEncoder.default(self, o)
+            try:
+                return json.JSONEncoder.default(self, o)
+            except TypeError:
+                logging.debug(
+                    'Unknown data type %s, probably JAX was used here, '\
+                        'trying conversion to NumPy array.',
+                    type(o)
+                    )
+                return NumPyEncoder.default(self, numpy.array(o))
 
 
 def main():
-    logging.basicConfig(format='%(levelname)s: %(message)s')
     arguments_parser = argparse.ArgumentParser(description=__doc__)
     arguments_parser.add_argument('pkl_file')
     arguments_parser.add_argument(
@@ -133,7 +140,18 @@ def main():
         '--print-json', action='store_true',
         help='print model data in JSON format'
         )
+    arguments_parser.add_argument(
+        '--debug', action='store_true',
+        help='use debug mode with more logging'
+        )
     args = arguments_parser.parse_args()
+    
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.WARNING
+
+    logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
 
     model_data = ModelData(args.pkl_file, args.multimer, args.from_json)
     if args.show_plots or args.save_plots:
