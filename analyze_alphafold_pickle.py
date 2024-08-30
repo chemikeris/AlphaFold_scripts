@@ -17,12 +17,12 @@ class ModelData:
     def __init__(self, pkl_file_name, multimer, from_json=False):
         "Parse necessary data from AlphaFold pickle file"
         self.file_name = os.path.splitext(pkl_file_name)[0]
+        self.multimer = multimer
         if from_json:
             with open(pkl_file_name) as f:
                 self.data = json.load(f)
         else:
             p = pickle.load(open(pkl_file_name, 'rb'))
-            self.multimer = multimer
             try:
                 del p['distogram']
                 del p['experimentally_resolved']
