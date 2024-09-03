@@ -10,6 +10,7 @@ import json
 import string
 import csv
 import sys
+import logging
 
 from Bio import SeqIO
 import numpy as np
@@ -58,7 +59,7 @@ def get_chain_v_chain_PAE_res_pkl(
         if not idx0:
             msg = f"Couldnt find target seq {name0} among seqs: "
             msg += ",".join([i[0] for i in seqs])
-            print(msg)
+            logging.error(msg)
             raise RuntimeError
         idx0 = idx0[0]
         start0 = [len(i[1]) for n, i in enumerate(seqs) if n < idx0]
@@ -88,13 +89,11 @@ def get_chain_v_chain_PAE_res_pkl(
     ich_pae = np.concatenate([i[1] for i in pair_res], axis=1)
     # chain pae
     if ch_pae.size == 0:
-        print(f"Couldnt select PAE result for file {pkl_f}!")
-        breakpoint()
-        print()
+        logging.error(f"Couldn't select PAE result for file {pkl_f}!")
+        return {}
     if ich_pae.size == 0:
-        print(f"Failed to select interchain PAE for file {pkl_f}")
-        breakpoint()
-        print()
+        logging.error(f"Failed to select inter-chain PAE for file {pkl_f}")
+        return {}
     res = {
         "ch_PAE_median": np.median(ch_pae),
         "ch_PAE_mean": np.mean(ch_pae),
@@ -114,6 +113,8 @@ def get_chain_v_chain_PAE_res_pkl(
 def print_csv(results_dict, skip_header=False):
     "Output results to CSV"
     writer = csv.DictWriter(sys.stdout, fieldnames=results_dict.keys())
+    for item_to_join in ('PAE_query_chains', 'PAE_target_chains'):
+        results_dict[item_to_join] = ':'.join(results_dict[item_to_join])
     if not skip_header:
         writer.writeheader()
     writer.writerow(results_dict)
