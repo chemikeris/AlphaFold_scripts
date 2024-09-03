@@ -11,11 +11,12 @@ import string
 import csv
 import sys
 import logging
+import os
 
 from Bio import SeqIO
 import numpy as np
 
-from analyze_alphafold_pickle import ModelData
+from analyze_alphafold_pickle import ModelData, NumPyEncoder
 
 
 def fasta_reader(file):
@@ -95,6 +96,7 @@ def get_chain_v_chain_PAE_res_pkl(
         logging.error(f"Failed to select inter-chain PAE for file {pkl_f}")
         return {}
     res = {
+        "pkl_file": os.path.basename(pkl_model_data.file_name),
         "ch_PAE_median": np.median(ch_pae),
         "ch_PAE_mean": np.mean(ch_pae),
         "ich_PAE_median": np.median(ich_pae),
@@ -104,7 +106,6 @@ def get_chain_v_chain_PAE_res_pkl(
         res["ptm"] = pkl_model_data.ptm
         res["iptm"] = pkl_model_data.iptm
         res["plddt_median"] = np.median(pkl_model_data.plddt)
-    res = {k: float(v) for k, v in res.items()}
     res["PAE_query_chains"] = query_chains
     res["PAE_target_chains"] = target_chains
     return res
@@ -122,7 +123,7 @@ def print_csv(results_dict, skip_header=False):
 
 def print_json(results):
     "Output results to JSON"
-    print(json.dumps(results))
+    print(json.dumps(results, cls=NumPyEncoder))
 
 
 def main():
