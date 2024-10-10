@@ -37,13 +37,19 @@ def voronota_js_script_present():
         return False
 
 
-def run_voronota_inter_chain_contacts_script(pdb_file):
+def run_voronota_inter_chain_contacts_script(pdb_file, chains=None):
     "Calculate inter-chain contacts using Voronota-JS fast contacts script"
+    if chains:
+        select_chains = '[-a1 [-chain %s] -a2 [-chain %s]]' % chains
+        logging.info('Using only interface between chains %s and %s' % chains)
+    else:
+        select_chains = '[]'
     voronota_command = [
         VORONOTA_CONTACTS_SCRIPT,
         '--input', pdb_file,
         '--expand-ids',
         '--coarse-grained',
+        '--subselect-contacts', select_chains
         ]
     try:
         s = subprocess.run(
@@ -147,17 +153,40 @@ def main(arguments):
     arguments_parser.add_argument(
         '--debug', action='store_true', help='use debug logging'
         )
+    arguments_parser.add_argument(
+        '--chains1', help='comma separated chain names of first subunit'
+        )
+    arguments_parser.add_argument(
+        '--chains2', help='comma separated chain names of second subunit'
+        )
     args = arguments_parser.parse_args()
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     if not voronota_js_script_present():
         print(__doc__)
         return 1
+
+    if (args.chains1 and args.chains2):
+        chains = (args.chains1, args.chains2)
+        printable_chains = ':'.join(
+            [c.replace(',', '') for c in (args.chains1, args.chains2)]
+            )
+    elif args.chains1 or args.chains2:
+        logging.error(
+            'Please specify both sides of interface (--chains1 and --chains2).'
+            )
+        return 1
+    else:
+        chains = []
+        printable_chains = 'all'
+
     # Reading input data.
     model_data = ModelData(args.pkl_file, multimer=True)
-    contacts = run_voronota_inter_chain_contacts_script(args.pdb_file)
+    contacts = run_voronota_inter_chain_contacts_script(args.pdb_file, chains)
     sequences_data = fasta_reader(args.fasta)
     # Processing
     if args.test:
@@ -175,6 +204,7 @@ def main(arguments):
     #   interface pLDDT weighted by areas
     #   global pLDDT
     print(args.pdb_file,
+          printable_chains,
           sum(plddt_values)/len(plddt_values),
           sum(weighted_plddt_values)/sum(interface_areas.values()),
           model_data.global_plddt
