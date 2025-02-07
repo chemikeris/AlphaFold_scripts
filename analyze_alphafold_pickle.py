@@ -29,6 +29,7 @@ class ModelData:
                 del p['masked_msa']
                 del p['structure_module']
                 del p['aligned_confidence_probs']
+                del p['predicted_lddt']
             except KeyError as err:
                 logging.warning(
                     'Some keys (like %s) not found in pkl file %s, '\
