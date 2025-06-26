@@ -23,19 +23,23 @@ class ModelData:
                 self.data = json.load(f)
         else:
             p = pickle.load(open(pkl_file_name, 'rb'))
-            try:
-                del p['distogram']
-                del p['experimentally_resolved']
-                del p['masked_msa']
-                del p['structure_module']
-                del p['aligned_confidence_probs']
-                del p['predicted_lddt']
-            except KeyError as err:
-                logging.warning(
-                    'Some keys (like %s) not found in pkl file %s, '\
-                        'probably it is a minified version.',
-                    err, pkl_file_name
-                    )
+            unused_fields = [
+                'distogram',
+                'experimentally_resolved',
+                'masked_msa',
+                'structure_module',
+                'aligned_confidence_probs',
+                'predicted_lddt',
+                ]
+            for unnecessary in unused_fields:
+                try:
+                    del p[unnecessary]
+                except KeyError as err:
+                    logging.warning(
+                        'Some keys (like %s) not found in pkl file %s, '\
+                            'probably it is a minified version.',
+                        err, pkl_file_name
+                        )
             self.data = p
 
     @property
