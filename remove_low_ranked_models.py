@@ -17,6 +17,10 @@ def main(arguments):
         '--debug', action='store_true',
         help='use debug mode with more logging'
         )
+    arguments_parser.add_argument(
+        '--only-pkl-file', action='store_true',
+        help='remove only pkl file for lower rank models'
+        )
     keep = 1
     
     args = arguments_parser.parse_args()
@@ -39,14 +43,19 @@ def main(arguments):
     for i, badly_ranked in enumerate(order[keep:]):
         logging.info('Removing files related to %s', badly_ranked)
         wildcard = os.path.join(args.results_directory, '*%s*' % badly_ranked)
+        if args.only_pkl_file:
+            wildcard += '.pkl'
         remove_files = glob.glob(wildcard)
         for fname in remove_files:
+            logging.info('Removing file %s', fname)
             os.remove(fname)
-        ranked_fname = 'ranked_%s.pdb' % str(keep+i)
-        try:
-            os.remove(os.path.join(args.results_directory, ranked_fname))
-        except FileNotFoundError:
-            pass
+        if not args.only_pkl_file:
+            ranked_fname = 'ranked_%s.pdb' % str(keep+i)
+            logging.info('Removing file %s', ranked_fname)
+            try:
+                os.remove(os.path.join(args.results_directory, ranked_fname))
+            except FileNotFoundError:
+                logging.warning('File %s not found!', ranked_fname)
 
 
 if __name__ == '__main__':
