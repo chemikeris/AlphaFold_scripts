@@ -5,6 +5,7 @@ set -o errexit
 set -o pipefail
 
 conda_directory="/data/miniconda3"
+conda_enviroment='alphafold2'
 alphafold_installation_directory="/data/alphafold"
 databases_directory="/data/alphafold_dbs"
 input_fasta=""
@@ -22,6 +23,7 @@ usage="A script to run AlphaFold2 from DeepMind.
 
 Command line arguments:
 -C: Miniconda directory where AlphaFold2 is installed (current: $conda_directory);
+-E: name of conda environment (current: $conda_enviroment);
 -I: AlphaFold installation directory (current: $alphafold_installation_directory);
 -D: directory path to AlphaFold databases (current: $databases_directory);
 -S: analyze AlphaFold prediction results using scripts from given scripts directory;
@@ -44,9 +46,10 @@ if [ $# -eq 0 ]; then
     echo "$usage"
     exit 0
 fi
-while getopts 'C:I:D:S:i:o:d:p:T:thGmV' opt; do
+while getopts 'C:E:I:D:S:i:o:d:p:T:thGmV' opt; do
     case $opt in
         C) conda_directory="$OPTARG";;
+        E) conda_enviroment="$OPTARG";;
         I) alphafold_installation_directory="$OPTARG";;
         D) databases_directory="$OPTARG";;
         S) analyze_results=true; scripts_directory="$OPTARG";;
@@ -123,7 +126,7 @@ echo "Output directory: $output_directory."
 input_basename=`basename $input_fasta`
 output_subdirectory=$output_directory/${input_basename%.*}
 echo "Results directory: $output_subdirectory."
-echo "Using Miniconda from $conda_directory, AlphaFold from $alphafold_installation_directory, and databases from $databases_directory."
+echo "Using Miniconda from $conda_directory (env: $conda_enviroment), AlphaFold from $alphafold_installation_directory, and databases from $databases_directory."
 if $gpu_present; then
     echo "Relaxing using GPU."
     gpu_relax_argument="--use_gpu_relax"
@@ -148,7 +151,7 @@ if $dry_run; then
 fi
 
 echo "Running AlphaFold predictions."
-. $conda_directory/bin/activate alphafold
+. $conda_directory/bin/activate $conda_enviroment
 python $alphafold_installation_directory/run_alphafold.py \
     $gpu_relax_argument $precomputed_msas_argument \
     --fasta_paths=$input_fasta \

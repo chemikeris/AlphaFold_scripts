@@ -1,0 +1,19 @@
+name: alphafold2
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+  - nvidia
+dependencies:
+  - aria2
+  - cuda-toolkit=12.2
+  - cudnn=8.9
+  - hhsuite=3.3.0
+  - hmmer=3.3
+  - kalign2=2.04
+  - openmm=8.0.0
+  - pdbfixer
+  - pip
+  - python=3.11
+  - tzdata
+prefix: /data/miniconda3/envs/alphafold2
