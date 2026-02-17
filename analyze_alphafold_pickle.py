@@ -41,6 +41,8 @@ class ModelData:
                         err, pkl_file_name
                         )
             self.data = p
+        self.plddt_field = 'plddt'
+        self.pae_field = 'predicted_aligned_error'
 
     @property
     def ptm(self):
@@ -56,15 +58,15 @@ class ModelData:
 
     @property
     def plddt(self):
-        return self.data['plddt']
+        return self.data[self.plddt_field]
 
     @property
     def global_plddt(self):
-        return sum(self.data['plddt'])/len(self.data['plddt'])
+        return sum(self.data[self.plddt_field])/len(self.data[self.plddt_field])
 
     @property
     def predicted_aligned_error(self):
-        return self.data['predicted_aligned_error']
+        return self.data[self.pae_field]
 
     @property
     def max_pae(self):
@@ -105,6 +107,24 @@ class ModelData:
         return json.dumps(self.data, cls=NumPyEncoder)
 
 
+class AlphaFold3ModelData(ModelData):
+    def __init__(self, pkl_file_name, *args, **kwargs):
+        "Parse necessary data from AlphaFold3 confidence JSON file"
+        self.file_name = os.path.splitext(pkl_file_name)[0].rsplit('_', 1)[0]
+        self.multimer = True
+        with open(pkl_file_name) as f:
+            self.data = json.load(f)
+        with open(self.file_name+'_summary_confidences.json') as f:
+            additional_data = json.load(f)
+        self.data.update(additional_data)
+        self.plddt_field = 'atom_plddts'
+        self.pae_field = 'pae'
+
+    @property
+    def max_pae(self):
+        return 31.75
+
+
 class NumPyEncoder(json.JSONEncoder):
     def default(self, o):
         if type(o).__module__ == numpy.__name__:
@@ -138,6 +158,10 @@ def main():
         help='show pLDDT and PAE plots'
         )
     arguments_parser.add_argument(
+        '--alphafold3', action='store_true',
+        help='use AlphaFold 3 confidence output instead of AlphaFold 2 pkl'
+        )
+    arguments_parser.add_argument(
         '--save-plots', action='store_true',
         help='save pLDDT and PAE plots to files'
         )
@@ -158,7 +182,10 @@ def main():
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
 
-    model_data = ModelData(args.pkl_file, args.multimer, args.from_json)
+    if args.alphafold3:
+        model_data = AlphaFold3ModelData(args.pkl_file)
+    else:
+        model_data = ModelData(args.pkl_file, args.multimer, args.from_json)
     if args.show_plots or args.save_plots:
         model_data.plot_PAE(args.save_plots)
         model_data.plot_pLDDT(args.save_plots)
