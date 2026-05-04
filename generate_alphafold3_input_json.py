@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple, Dict, Iterator
 import string
+import random
 
 # -----------------------------------------------------------------------------
 # FASTA parsing
@@ -72,6 +73,12 @@ def chain_id_generator() -> Iterator[str]:
     raise RuntimeError("Exceeded maximum number of chains (26).")
 
 # -----------------------------------------------------------------------------
+# Generate random seeds
+# -----------------------------------------------------------------------------
+def generate_random_seeds(n: int ) -> List[int]:
+    return list(set(random.sample(range(4294967295), n)))
+
+# -----------------------------------------------------------------------------
 # Entity builders
 # -----------------------------------------------------------------------------
 def protein_entity(chain_ids: List[str], seq: str) -> Dict:
@@ -102,6 +109,9 @@ def main():
     parser.add_argument("--rna", type=Path, help="RNA FASTA file")
     parser.add_argument("--rna-stoich", type=str, default="",
                         help="RNA stoichiometry (e.g. 1:1)")
+
+    parser.add_argument('--number-of-seeds', type=int, default=1,
+                        help='Number of random seeds (default: 1)')
 
     parser.add_argument("--name", type=str, default="af3_job",
                         help="Job name")
@@ -173,7 +183,7 @@ def main():
         "sequences": sequences,
         "dialect": "alphafold3",
         "version": 3,
-        "modelSeeds": [0],
+        "modelSeeds": generate_random_seeds(args.number_of_seeds),
     }
 
     logger.info("Writing AlphaFold3 JSON to stdout")
