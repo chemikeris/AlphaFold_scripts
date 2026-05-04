@@ -81,8 +81,16 @@ def generate_random_seeds(n: int ) -> List[int]:
 # -----------------------------------------------------------------------------
 # Entity builders
 # -----------------------------------------------------------------------------
-def protein_entity(chain_ids: List[str], seq: str) -> Dict:
-    return {"protein": {"id": chain_ids, "sequence": seq}}
+def protein_entity(chain_ids: List[str], seq: str, no_templates: bool) -> Dict:
+    templates_info = [] if no_templates else None
+    return_value = {
+        "protein": {
+            "id": chain_ids,
+            "sequence": seq,
+            'templates': templates_info
+            }
+        }
+    return return_value
 
 def dna_entity(chain_ids: List[str], seq: str) -> Dict:
     return {"dna": {"id": chain_ids, "sequence": seq}}
@@ -101,6 +109,8 @@ def main():
     parser.add_argument("--proteins", type=Path, help="Protein FASTA file")
     parser.add_argument("--protein-stoich", type=str, default="",
                         help="Protein stoichiometry (e.g. 2:1)")
+    parser.add_argument('--no-protein-templates', action='store_true',
+                        help='Do not use templates for proteins')
 
     parser.add_argument("--dna", type=Path, help="DNA FASTA file")
     parser.add_argument("--dna-stoich", type=str, default="",
@@ -144,7 +154,7 @@ def main():
 
         for (_, seq), count in zip(prots, counts):
             ids = [next(chain_ids) for _ in range(count)]
-            sequences.append(protein_entity(ids, seq))
+            sequences.append(protein_entity(ids, seq, args.no_protein_templates))
 
     # -------------------------------------------------------------------------
     # DNA
