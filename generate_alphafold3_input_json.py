@@ -98,6 +98,9 @@ def dna_entity(chain_ids: List[str], seq: str) -> Dict:
 def rna_entity(chain_ids: List[str], seq: str) -> Dict:
     return {"rna": {"id": chain_ids, "sequence": seq}}
 
+def ligand_entity_from_smiles(chain_id: str, smiles: str) -> Dict:
+    return {"ligand": {"id": chain_id, "smiles": smiles}}
+
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
@@ -119,6 +122,9 @@ def main():
     parser.add_argument("--rna", type=Path, help="RNA FASTA file")
     parser.add_argument("--rna-stoich", type=str, default="",
                         help="RNA stoichiometry (e.g. 1:1)")
+
+    parser.add_argument("--ligand-smiles", type=str, default=None,
+                        help="Ligand smiles (comma separated)")
 
     parser.add_argument('--number-of-seeds', type=int, default=1,
                         help='Number of random seeds (default: 1)')
@@ -183,6 +189,16 @@ def main():
         for (_, seq), count in zip(rnas, counts):
             ids = [next(chain_ids) for _ in range(count)]
             sequences.append(rna_entity(ids, seq))
+
+    # -------------------------------------------------------------------------
+    # Ligand smiles
+    # -------------------------------------------------------------------------
+    if args.ligand_smiles:
+        logger.info("Reading ligand smiles")
+        smiles = args.ligand_smiles.split(',')
+        for sm in smiles:
+            chain = next(chain_ids)
+            sequences.append(ligand_entity_from_smiles(chain, sm))
 
     if not sequences:
         logger.error("No sequences provided.")
