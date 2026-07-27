@@ -70,7 +70,12 @@ def parse_numeric_stoichiometry(stoich: str, n_items: int) -> List[int]:
 def chain_id_generator() -> Iterator[str]:
     for c in string.ascii_uppercase:
         yield c
-    raise RuntimeError("Exceeded maximum number of chains (26).")
+
+    for first in string.ascii_uppercase:
+        for second in string.ascii_uppercase:
+            yield first + second
+
+    raise RuntimeError("Exceeded maximum number of chains (702).")
 
 # -----------------------------------------------------------------------------
 # Generate random seeds
