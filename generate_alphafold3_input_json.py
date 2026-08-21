@@ -105,8 +105,11 @@ def protein_entity(chain_ids: List[str], seq: str, no_templates: bool) -> Dict:
 def dna_entity(chain_ids: List[str], seq: str) -> Dict:
     return {"dna": {"id": chain_ids, "sequence": seq}}
 
-def rna_entity(chain_ids: List[str], seq: str) -> Dict:
-    return {"rna": {"id": chain_ids, "sequence": seq}}
+def rna_entity(chain_ids: List[str], seq: str, msa_path: str) -> Dict:
+    return_value = {"rna": {"id": chain_ids, "sequence": seq}}
+    if msa_path:
+        return_value['rna']['unpairedMsaPath'] = msa_path
+    return return_value
 
 def ligand_entity_from_ccd(chain_ids: str, ccd: str) -> Dict:
     return {"ligand": {"id": chain_ids, "ccdCodes": ccd}}
@@ -127,6 +130,7 @@ def main():
                         help="Protein stoichiometry (e.g. 2:1)")
     parser.add_argument('--no-protein-templates', action='store_true',
                         help='Do not use templates for proteins')
+    #TODO: Add feature to include protein MSA paths
 
     parser.add_argument("--dna", type=Path, help="DNA FASTA file")
     parser.add_argument("--dna-stoich", type=str, default="",
@@ -135,6 +139,8 @@ def main():
     parser.add_argument("--rna", type=Path, help="RNA FASTA file")
     parser.add_argument("--rna-stoich", type=str, default="",
                         help="RNA stoichiometry (e.g. 1:1)")
+    parser.add_argument("--rna-msa-path", type=str, nargs="*", default="",
+                        help="RNA MSA A3M file(s)")
 
     parser.add_argument("--ligand-ccd", type=str, default=None,
                         help="Ligand PDB CCD codes (comma separated)")
@@ -202,13 +208,25 @@ def main():
     if args.rna:
         logger.info(f"Reading RNA FASTA: {args.rna}")
         rnas = parse_fasta(args.rna)
+        if args.rna_msa_path:
+            logger.info("Using pre-calculated RNA MSAs")
+            if len(args.rna_msa_path) != len(rnas):
+                logger.error(
+                    "Number of RNA MSA files does not match number of RNA "\
+                    "sequences!"
+                    )
+                sys.exit(1)
+            rna_msa_paths = args.rna_msa_path
+        else:
+            rna_msa_paths = [None] * len(rnas)
+
         counts = parse_numeric_stoichiometry(
             args.rna_stoich, len(rnas)
         )
 
-        for (_, seq), count in zip(rnas, counts):
+        for (_, seq), count, msa_path in zip(rnas, counts, rna_msa_paths):
             ids = [next(chain_ids) for _ in range(count)]
-            sequences.append(rna_entity(ids, seq))
+            sequences.append(rna_entity(ids, seq, msa_path))
 
     # -------------------------------------------------------------------------
     # Ligand CCD
@@ -238,7 +256,7 @@ def main():
                 ids = [next(names) for _ in range(count)]
             else:
                 ids = [next(chain_ids) for _ in range(count)]
-            sequences.append(ligand_entity_from_ccd(ids, ligand_ccd))
+            sequences.append(ligand_entity_from_ccd(ids, [ligand_ccd]))
 
     # -------------------------------------------------------------------------
     # Ligand SMILES
