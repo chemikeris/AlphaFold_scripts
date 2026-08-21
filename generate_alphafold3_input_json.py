@@ -77,6 +77,11 @@ def chain_id_generator() -> Iterator[str]:
 
     raise RuntimeError("Exceeded maximum number of chains (702).")
 
+def custom_chain_id_generator(prefix) -> Iterator[str]:
+    chain_ids = chain_id_generator()
+    for c in chain_ids:
+        yield prefix+c
+
 # -----------------------------------------------------------------------------
 # Generate random seeds
 # -----------------------------------------------------------------------------
@@ -103,6 +108,9 @@ def dna_entity(chain_ids: List[str], seq: str) -> Dict:
 def rna_entity(chain_ids: List[str], seq: str) -> Dict:
     return {"rna": {"id": chain_ids, "sequence": seq}}
 
+def ligand_entity_from_ccd(chain_ids: str, ccd: str) -> Dict:
+    return {"ligand": {"id": chain_ids, "ccdCodes": ccd}}
+
 def ligand_entity_from_smiles(chain_id: str, smiles: str) -> Dict:
     return {"ligand": {"id": chain_id, "smiles": smiles}}
 
@@ -127,6 +135,13 @@ def main():
     parser.add_argument("--rna", type=Path, help="RNA FASTA file")
     parser.add_argument("--rna-stoich", type=str, default="",
                         help="RNA stoichiometry (e.g. 1:1)")
+
+    parser.add_argument("--ligand-ccd", type=str, default=None,
+                        help="Ligand PDB CCD codes (comma separated)")
+    parser.add_argument("--ligand-ccd-stoich", type=str, default="",
+                        help="Ligand from CCD stoichiometry")
+    parser.add_argument("--ligand-ccd-prefix", type=str, default="",
+                        help="Prefixes for CCD ligand chain names")
 
     parser.add_argument("--ligand-smiles", type=str, default=None,
                         help="Ligand smiles (comma separated)")
@@ -196,10 +211,40 @@ def main():
             sequences.append(rna_entity(ids, seq))
 
     # -------------------------------------------------------------------------
-    # Ligand smiles
+    # Ligand CCD
+    # -------------------------------------------------------------------------
+    if args.ligand_ccd:
+        logger.info("Reading ligands from given CCD codes")
+        ligand_ccd_codes = args.ligand_ccd.split(',')
+        if args.ligand_ccd_prefix:
+            ligand_ccd_prefixes = args.ligand_ccd_prefix.split(',')
+            if len(ligand_ccd_codes) != len(ligand_ccd_prefixes):
+                logging.error(
+                    "Number of CCD codes does not match number of given "\
+                    "prefixes!"
+                )
+                sys.exit(1)
+            else:
+                use_custom_ligand_chain_names = True
+        else:
+            use_custom_ligand_chain_names = False
+        counts = parse_numeric_stoichiometry(
+            args.ligand_ccd_stoich, len(ligand_ccd_codes)
+        )
+        for i, ligand_ccd in enumerate(ligand_ccd_codes):
+            count = counts[i]
+            if use_custom_ligand_chain_names:
+                names = custom_chain_id_generator(ligand_ccd_prefixes[i])
+                ids = [next(names) for _ in range(count)]
+            else:
+                ids = [next(chain_ids) for _ in range(count)]
+            sequences.append(ligand_entity_from_ccd(ids, ligand_ccd))
+
+    # -------------------------------------------------------------------------
+    # Ligand SMILES
     # -------------------------------------------------------------------------
     if args.ligand_smiles:
-        logger.info("Reading ligand smiles")
+        logger.info("Reading ligand SMILES")
         smiles = args.ligand_smiles.split(',')
         for sm in smiles:
             chain = next(chain_ids)
