@@ -7,6 +7,7 @@ import os
 import logging
 import csv
 import argparse
+import errno
 
 
 def get_alphafold_scores_for_model(model_no, results_directory, af_model):
@@ -68,9 +69,18 @@ def collect_scores(directory, protein, multimer):
         scores['pTM'] = ptm
         if iptm:
             scores['ipTM'] = iptm
-        voromqa, voromqa_energy = read_voromqa_scores_for_model(
-               m, results_directory, af_model
-               )
+        try:
+            voromqa, voromqa_energy = read_voromqa_scores_for_model(
+                   m, results_directory, af_model
+                   )
+        except FileNotFoundError as err:
+            if err.errno == errno.ENOENT:
+                logging.warning(
+                    'Skipping model %s because its VoroMQA scores do '\
+                    'not exist.',
+                    m
+                    )
+                continue
         scores['voromqa'] = voromqa
         if voromqa_energy:
             scores['voromqa_energy'] = voromqa_energy
