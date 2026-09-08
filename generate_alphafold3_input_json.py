@@ -5,6 +5,7 @@ for proteins, DNA, and RNA, with stoichiometry implemented via
 unique chain IDs (A–Z).
 """
 
+import os
 import argparse
 import json
 import logging
@@ -91,7 +92,12 @@ def generate_random_seeds(n: int ) -> List[int]:
 # -----------------------------------------------------------------------------
 # Entity builders
 # -----------------------------------------------------------------------------
-def protein_entity(chain_ids: List[str], seq: str, no_templates: bool) -> Dict:
+def protein_entity(
+        chain_ids: List[str],
+        seq: str,
+        no_templates: bool,
+        msa_path: str
+        ) -> Dict:
     templates_info = [] if no_templates else None
     return_value = {
         "protein": {
@@ -100,6 +106,11 @@ def protein_entity(chain_ids: List[str], seq: str, no_templates: bool) -> Dict:
             'templates': templates_info
             }
         }
+    if msa_path:
+        return_value["protein"]["pairedMsaPath"] = \
+            os.path.join(msa_path, "pairedMsa.a3m")
+        return_value["protein"]["unpairedMsaPath"] = \
+            os.path.join(msa_path, "unpairedMsa.a3m")
     return return_value
 
 def dna_entity(chain_ids: List[str], seq: str) -> Dict:
@@ -130,7 +141,10 @@ def main():
                         help="Protein stoichiometry (e.g. 2:1)")
     parser.add_argument('--no-protein-templates', action='store_true',
                         help='Do not use templates for proteins')
-    #TODO: Add feature to include protein MSA paths
+    parser.add_argument('--protein-msas-dir', type=str, default="", nargs='*',
+                        help="Directories with precomputed paired and "\
+                             "unpaired protein MSAs"
+                        )
 
     parser.add_argument("--dna", type=Path, help="DNA FASTA file")
     parser.add_argument("--dna-stoich", type=str, default="",
@@ -179,14 +193,27 @@ def main():
     # -------------------------------------------------------------------------
     if args.proteins:
         logger.info(f"Reading protein FASTA: {args.proteins}")
-        prots = parse_fasta(args.proteins)
+        proteins = parse_fasta(args.proteins)
         counts = parse_numeric_stoichiometry(
-            args.protein_stoich, len(prots)
+            args.protein_stoich, len(proteins)
         )
+        if args.protein_msas_dir:
+            logger.info("Using pre-calculated protein MSAs")
+            if len(args.protein_msas_dir) != len(proteins):
+                logger.error(
+                    "Number of protein MSA directories does not match number "\
+                    "of protein sequences!"
+                    )
+                sys.exit(1)
+            protein_msa_paths = args.protein_msas_dir
+        else:
+            protein_msa_paths = [None] * len(proteins)
 
-        for (_, seq), count in zip(prots, counts):
+        for (_, seq), count, p_msa in zip(proteins, counts, protein_msa_paths):
             ids = [next(chain_ids) for _ in range(count)]
-            sequences.append(protein_entity(ids, seq, args.no_protein_templates))
+            sequences.append(
+                protein_entity(ids, seq, args.no_protein_templates, p_msa)
+                )
 
     # -------------------------------------------------------------------------
     # DNA
