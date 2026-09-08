@@ -125,8 +125,8 @@ def rna_entity(chain_ids: List[str], seq: str, msa_path: str) -> Dict:
 def ligand_entity_from_ccd(chain_ids: str, ccd: str) -> Dict:
     return {"ligand": {"id": chain_ids, "ccdCodes": ccd}}
 
-def ligand_entity_from_smiles(chain_id: str, smiles: str) -> Dict:
-    return {"ligand": {"id": chain_id, "smiles": smiles}}
+def ligand_entity_from_smiles(chain_ids: List[str], smiles: str) -> Dict:
+    return {"ligand": {"id": chain_ids, "smiles": smiles}}
 
 # -----------------------------------------------------------------------------
 # Main
@@ -165,6 +165,8 @@ def main():
 
     parser.add_argument("--ligand-smiles", type=str, default=None,
                         help="Ligand smiles (comma separated)")
+    parser.add_argument("--ligand-smiles-stoich", type=str, default="",
+                        help="Ligand from SMILES stoichiometry")
 
     parser.add_argument('--number-of-seeds', type=int, default=1,
                         help='Number of random seeds (default: 1)')
@@ -291,8 +293,11 @@ def main():
     if args.ligand_smiles:
         logger.info("Reading ligand SMILES")
         smiles = args.ligand_smiles.split(',')
-        for sm in smiles:
-            chain = next(chain_ids)
+        counts = parse_numeric_stoichiometry(
+            args.ligand_smiles_stoich, len(smiles)
+        )
+        for sm, count in zip(smiles, counts):
+            chain = [next(chain_ids) for _ in range(count)]
             sequences.append(ligand_entity_from_smiles(chain, sm))
 
     if not sequences:
