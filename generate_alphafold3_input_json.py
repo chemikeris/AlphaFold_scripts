@@ -163,6 +163,9 @@ def main():
     parser.add_argument("--ligand-ccd-prefix", type=str, default="",
                         help="Prefixes for CCD ligand chain names")
 
+    parser.add_argument("--user-ccd-path", type=str, default="",
+                        help="Path to custom CCD file")
+
     parser.add_argument("--ligand-smiles", type=str, default=None,
                         help="Ligand smiles (comma separated)")
     parser.add_argument("--ligand-smiles-stoich", type=str, default="",
@@ -311,6 +314,8 @@ def main():
         "version": 3,
         "modelSeeds": generate_random_seeds(args.number_of_seeds),
     }
+    if args.user_ccd_path:
+        af3_json['userCCDPath'] = args.user_ccd_path
 
     logger.info("Writing AlphaFold3 JSON to stdout")
     json.dump(af3_json, sys.stdout, indent=2)
